@@ -1,4 +1,5 @@
 [project]
+authors = [{name = "Babuni.dev"}]
 name = "anskar"
 version = "0.1.0"
 description = "Local poetry archive for Anskar Grotzschnapf."
