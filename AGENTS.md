@@ -94,3 +94,7 @@ The page can generate from text typed into it. House style is a checkbox, a styl
 The agent maintains this repository on the local machine, implements the task in `docs/tasks/`, and stops at the boundary that task sets. Permanent behavior belongs in this file. A finished task stays in `docs/tasks/` as a record; it does not become a standing instruction by itself.
 
 Before claiming a task is done, run the tests and the command the task names. Report what was created, the layout, the imported count, the test results, and any decision that still needs a person.
+
+## Project authorship
+
+Credit **Babuni.dev** as the human author of this automated art project in project metadata and portfolio documentation. Anskar Grotzschnapf remains the fictional in-world artist; original poets and translators must retain their own proper attribution. Do not substitute the project author for a source poem's author.
