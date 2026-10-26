@@ -1,5 +1,7 @@
 # Anskar Grotzschnapf
 
+**Author:** Babuni.dev
+
 Local poetry archive and daily artist. Once a day this machine can:
 
 1. Choose one cleared poem from the archive  
