@@ -14,3 +14,9 @@ First operational “set and forget” daily artist:
 - Desktop notifications for daily stages (`ANSKAR_NOTIFY=0` to silence).
 
 Earlier milestones (archive import, prompt lab, Instagram Login, Etsy OAuth, wake rehearsal) are recorded as tasks 010–020 under `docs/tasks/`.
+
+## 2026-10-28 — Documentation audit #36
+
+- Added design and content/provenance guides and consolidated the artistic intention, daily pipeline and archival failure lessons into the supporting project documentation.
+- Preserved the original numbered task archive, all creative source material, publication scripts and existing operational release notes.
+- Identified the difference between `pyproject.toml` package version 0.1.0 and the documented operational 1.0.0 milestone for later review. No art, service publication or runtime test performed in this pass.
