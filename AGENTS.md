@@ -98,3 +98,7 @@ Before claiming a task is done, run the tests and the command the task names. Re
 ## Project authorship
 
 Credit **Babuni.dev** as the human author of this automated art project in project metadata and portfolio documentation. Anskar Grotzschnapf remains the fictional in-world artist; original poets and translators must retain their own proper attribution. Do not substitute the project author for a source poem's author.
+
+## Portfolio documentation boundary — audit #36
+
+The project's creator and artistic director is **Babuni.dev**, Anskar is a fictional persona, and poets/translators retain their own literary authorship. Never describe a visual prompt as the original poem; preserve exact poem text and eligibility evidence. Keep original numbered tasks and failed experiments as historical records. Distinguish documented operational status from what was actually re-tested on the machine, and never expose social or shop credentials, tokens, unpublished copyrighted poetry or customer details in portfolio records.
