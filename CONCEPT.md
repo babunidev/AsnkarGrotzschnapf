@@ -15,3 +15,9 @@ The distinction between the human who designed the artwork system, its fictional
 - [Task archive](docs/tasks/): experiments, fixes and source-backed development history, including prompt interpretation, printing, OAuth and resilient daily runs.
 
 This document synthesizes committed evidence; it does not retroactively approve new stylistic or commercial directions.
+
+## Creative direction and its constraints
+
+Babuni.dev established the fictional-artist concept: a daily machine artist encounters a *complete, cleared poem*, interprets it, produces local artwork, and makes a print and public post. That experience relies on more than image generation. The original poem must remain intact and attributed; interpretation belongs in a separate prompt; an artwork and its print files must be traced to an eligible poem; and a partially completed day must resume instead of silently making another work.
+
+This narrative summarizes the existing authored rules and task records. It grants no new publishing permissions and does not treat Anskar's fictional persona as the poem's literary author.
