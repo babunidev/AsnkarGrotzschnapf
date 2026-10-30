@@ -2,6 +2,8 @@
 
 **Author:** Babuni.dev
 
+> Correction — 30 October 2026: The 29 October test rerun unintentionally published a duplicate Reel because publishing was not fully isolated in tests. The earlier statement that this verification made no live publication was incorrect. Passing tests did not establish the absence of external side effects.
+
 ## Retrospective source review — 2026-10-26
 
 The project began with the artistic experiment of a fictional machine artist creating on a schedule rather than a one-off image generator. Its repository now records the practical journey needed to make that fiction operational: assembling and clearing a poetry archive, interpreting text without replacing the original poem, selecting image-generation styles, preparing printable files, and integrating publication services.
