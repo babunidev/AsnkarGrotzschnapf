@@ -97,8 +97,12 @@ Before claiming a task is done, run the tests and the command the task names. Re
 
 ## Project authorship
 
-Credit **Babuni.dev** as the human author of this automated art project in project metadata and portfolio documentation. Anskar Grotzschnapf remains the fictional in-world artist; original poets and translators must retain their own proper attribution. Do not substitute the project author for a source poem's author.
+Credit **Babuni** as the human creative of this automated art project in project metadata and portfolio documentation. Anskar Grotzschnapf remains the fictional in-world artist; original poets and translators must retain their own proper attribution. Do not substitute the project author for a source poem's author.
 
 ## Portfolio documentation boundary — audit #36
 
-The project's creator and artistic director is **Babuni.dev**, Anskar is a fictional persona, and poets/translators retain their own literary authorship. Never describe a visual prompt as the original poem; preserve exact poem text and eligibility evidence. Keep original numbered tasks and failed experiments as historical records. Distinguish documented operational status from what was actually re-tested on the machine, and never expose social or shop credentials, tokens, unpublished copyrighted poetry or customer details in portfolio records.
+The project's human creative and artistic director is **Babuni**, Anskar is a fictional persona, and poets/translators retain their own literary authorship. Never describe a visual prompt as the original poem; preserve exact poem text and eligibility evidence. Keep original numbered tasks and failed experiments as historical records. Distinguish documented operational status from what was actually re-tested on the machine, and never expose social or shop credentials, tokens, unpublished copyrighted poetry or customer details in portfolio records.
+
+## Repository-local documentation standard
+
+Before writing or changing project documentation, read [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md). These rules travel with this repository and do not depend on the babuni.dev ChatGPT Project. Preserve all project-specific technical, creative, canon, safety, licensing, and historical rules in this file; follow the linked standard for public first-person narrative, human–AI attribution, concise development journals, decision records, and evidence-based verification. **Babuni** is the human creative; **babuni.dev** is the website/portfolio, not the person. Preserve third-party credits and historical legal notices. References above to a dated “documentation-only audit” describe that past task, not a permanent ban on later authorized implementation.
