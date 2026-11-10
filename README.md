@@ -1,6 +1,6 @@
 # Anskar Grotzschnapf
 
-**Author:** Babuni.dev
+**Creative:** Babuni
 
 Local poetry archive and daily artist. Once a day this machine can:
 
@@ -153,7 +153,7 @@ PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
 
 The journal distinguishes source-based reconstruction, author direction, AI assistance, and independently verified behavior.
 
-## Documentation audit #36 — 28 October 2026
+## Documentation review — 28 October 2026
 
 The project is an ongoing local-first fictional artist created by **Babuni.dev**, not a claim that its software wrote the source poems. Source poets/translators retain attribution. This audit indexes the artistic presentation, poem/pack provenance, scheduling rules and recorded failure-recovery history without modifying artwork or publishing behavior.
 

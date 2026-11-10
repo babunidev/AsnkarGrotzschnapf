@@ -1,6 +1,6 @@
 # Anskar Grotzschnapf — development journal
 
-**Author:** Babuni.dev
+**Creative:** Babuni
 
 > Correction — 30 October 2026: The 29 October test rerun unintentionally published a duplicate Reel because publishing was not fully isolated in tests. The earlier statement that this verification made no live publication was incorrect. Passing tests did not establish the absence of external side effects.
 
