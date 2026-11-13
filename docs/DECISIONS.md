@@ -22,3 +22,7 @@ A newly approved publishing strategy, legal clearance of any particular poem, or
 - **Scheduling:** A wake-capable system timer and an awake-machine user timer are alternative noon publishers, not simultaneous schedules. Etsy maintenance is a separate activity.
 
 No additional artistic, copyright, commercial or scheduling policy was accepted by this documentation audit.
+
+## 2026-11-13 — Licensing decision
+
+To make the reuse terms explicit, I approved MIT for original publishing software, with poetry and artworks under separately documented rights. This applies only to material for which the relevant rights can be granted; third-party contributors keep their own credits and licenses. AI assistance committed the license notice and updated project-facing documentation. This was a legal/documentation change, not a runtime feature or test.
