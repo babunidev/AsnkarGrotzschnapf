@@ -28,3 +28,8 @@ Earlier milestones (archive import, prompt lab, Instagram Login, Etsy OAuth, wak
 - Recorded the read-only investigation of the successful 29 October noon run: wake, automatic Ollama startup, and saved Instagram/Etsy publication results. No new artwork or social/storefront publication was triggered.
 - Kept historical test results and uncertain dates distinct from fresh verification. Omitted personal network identifiers and account circumstances.
 - Confirmed the portfolio already selects this journal; its saved content snapshot must be refreshed and built before the website displays the addition.
+
+## 2026-11-13 — License and rights
+
+- Established MIT for software with separate poetry, art and model rights and updated repository documentation to explain the permission boundary.
+- Preserved third-party authorship and external assets' separate terms. No application behavior or runtime verification is claimed.
