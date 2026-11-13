@@ -1,6 +1,8 @@
 # Anskar Grotzschnapf — authorship and collaboration
 
-**Human project author:** Babuni.dev  
+Follow [the documentation standard](DOCUMENTATION.md) for first-person author voice throughout project documentation, factual changelogs, and naming the AI tool and verified model for each contribution.
+
+**Human project author:** Babuni.dev
 **In-world fictional artist:** Anskar Grotzschnapf
 
 Poem authors and translators must be identified using archive metadata, with copyright eligibility and source evidence kept alongside the text. AI-generated interpretations or images do not make an AI or the fictional persona the author of the quoted poems.
