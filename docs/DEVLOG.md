@@ -107,3 +107,7 @@ This addition combines tasks 001–021 already represented in the repository wit
 The portfolio website already includes `docs/DEVLOG.md` among this project's eight configured source documents. It reads a saved repository snapshot: updating GitHub makes this history available for its next content sync and build, rather than immediately changing the deployed website.
 
 **Verification for this addition (29 October):** The current local working tree ran `ANSKAR_NOTIFY=0 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -q`: 251 tests passed in 95.337 seconds with localhost socket access. An initial restricted run had three socket-permission errors. This result belongs to the local working tree, including pre-existing uncommitted changes, not the older GitHub source snapshot. Journal links were checked locally and the published document was read back for comparison. No poems were imported and no live publishing command was run for this documentation update.
+
+## 2026-11-13 — Giving the repository clear permissions
+
+Public source alone did not explain what others could reuse, so I approved MIT for the publishing system while poetry and artwork remain separately credited. AI assistance added the license and brought the project notes into agreement, without changing how the application runs. Other people's content retains its own terms.
