@@ -158,3 +158,7 @@ The journal distinguishes source-based reconstruction, author direction, AI assi
 The project is an ongoing local-first fictional artist created by **Babuni.dev**, not a claim that its software wrote the source poems. Source poets/translators retain attribution. This audit indexes the artistic presentation, poem/pack provenance, scheduling rules and recorded failure-recovery history without modifying artwork or publishing behavior.
 
 See [design](docs/DESIGN.md), [content and provenance](docs/CONTENT.md), [architecture](docs/ARCHITECTURE.md), [decisions](docs/DECISIONS.md), [development journal](docs/DEVLOG.md) and [AI collaboration](docs/AI_COLLABORATION.md). The README/changelog describe an operational 1.0.0 loop, while `pyproject.toml` currently declares package version 0.1.0; this discrepancy requires deliberate release-metadata review. No scheduled job or social/storefront publication was executed during this audit.
+
+## License
+
+Original publishing software is licensed under [MIT](LICENSE). Poems, generated prints, storefront media and third-party assets have distinct rights; see [creative and asset rights](ASSET_RIGHTS.md).
