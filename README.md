@@ -147,7 +147,7 @@ PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
 
 ## Development documentation
 
-- [Concept](CONCEPT.md) · [Roadmap](ROADMAP.md) · [Changelog](CHANGELOG.md)
+- [Concept](docs/CONCEPT.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
 - [Architecture](docs/ARCHITECTURE.md) · [Design evidence](docs/DECISIONS.md) · [Development journal](docs/DEVLOG.md)
 - [AI collaborator rules](AGENTS.md)
 
@@ -161,4 +161,4 @@ See [design](docs/DESIGN.md), [content and provenance](docs/CONTENT.md), [archit
 
 ## License
 
-Original publishing software is licensed under [MIT](LICENSE). Poems, generated prints, storefront media and third-party assets have distinct rights; see [creative and asset rights](ASSET_RIGHTS.md).
+Original publishing software is licensed under [MIT](LICENSE). Poems, generated prints, storefront media and third-party assets have distinct rights; see [creative and asset rights](docs/ASSET_RIGHTS.md).

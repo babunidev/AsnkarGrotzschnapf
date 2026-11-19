@@ -8,4 +8,4 @@ The design distinguishes the original image, a preview, detail crops and the ful
 
 The user-facing rhythm is once per Swedish day. The fiction of a daily artist depends on credible continuity: interrupted work resumes rather than inventing a second piece, and remote publication failures must not silently erase eligible source material. The actual final images, print quality, social presentation and storefront need review in their respective environments; this audit did not generate or publish any art.
 
-See [creative concept](../CONCEPT.md), [source inventory](CONTENT.md), [task archive](tasks/) and [collaboration record](AI_COLLABORATION.md).
+See [creative concept](CONCEPT.md), [source inventory](CONTENT.md), [task archive](tasks/) and [collaboration record](AI_COLLABORATION.md).

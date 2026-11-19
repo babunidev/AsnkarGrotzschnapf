@@ -9,10 +9,10 @@ The distinction between the human who designed the artwork system, its fictional
 
 ## Existing evidence
 
-- [README](README.md): current run sequence, scheduler, publishing and testing commands.
-- [AGENTS](AGENTS.md): copyright eligibility and permanent project rules.
-- [CHANGELOG](CHANGELOG.md): documented operational 1.0.0 milestone dated 2026-10-21.
-- [Task archive](docs/tasks/): experiments, fixes and source-backed development history, including prompt interpretation, printing, OAuth and resilient daily runs.
+- [README](../README.md): current run sequence, scheduler, publishing and testing commands.
+- [AGENTS](../AGENTS.md): copyright eligibility and permanent project rules.
+- [CHANGELOG](../CHANGELOG.md): documented operational 1.0.0 milestone dated 2026-10-21.
+- [Task archive](tasks/): experiments, fixes and source-backed development history, including prompt interpretation, printing, OAuth and resilient daily runs.
 
 This document synthesizes committed evidence; it does not retroactively approve new stylistic or commercial directions.
 

@@ -4,7 +4,7 @@
 
 ## Source-documented milestone
 
-[CHANGELOG](CHANGELOG.md) records a 1.0.0 daily loop dated 2026-10-21: noon timer, locally generated 1600 × 1600 art, print pack, Instagram publishing, conditional quantity-one Etsy download listing, and Etsy maintenance (day-30 discount, day-42 removal). Task 021 describes resume, retry and duplicate-post hardening.
+[CHANGELOG](../CHANGELOG.md) records a 1.0.0 daily loop dated 2026-10-21: noon timer, locally generated 1600 × 1600 art, print pack, Instagram publishing, conditional quantity-one Etsy download listing, and Etsy maintenance (day-30 discount, day-42 removal). Task 021 describes resume, retry and duplicate-post hardening.
 
 ## Outstanding verification
 

@@ -1,6 +1,6 @@
 # Creative content and third-party rights
 
-The original Python publishing code and associated software documentation are licensed under [MIT](LICENSE).
+The original Python publishing code and associated software documentation are licensed under [MIT](../LICENSE).
 
 This software license does **not** include an unrestricted license to sell, redistribute, or relicense the poetry archive, finished artworks, print packs, model weights, brand identity, or storefront content.
 
