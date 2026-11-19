@@ -31,7 +31,6 @@ from anskar.printmaker import packs_dir
 
 __all__ = [
     "etsy_configured",
-    "align_listing",
     "refresh_listing_descriptions",
     "refresh_listing_images",
     "publish_pack",
@@ -172,91 +171,6 @@ def refresh_listing_images(
         except (EtsyError, OSError, TypeError, ValueError) as exc:
             errors.append(f"{pack_id or listing_id}: {exc}")
     return {"updated": updated, "errors": errors, "count": len(updated), "dry_run": dry_run}
-
-
-def align_listing(
-    pack_id: str,
-    listing_id: str,
-    *,
-    packs: Path | None = None,
-    credentials: EtsyCredentials | None = None,
-    client: EtsyClient | None = None,
-    rng=None,
-    price_sek: float | None = None,
-) -> dict[str, object]:
-    """Rewrite an existing live listing to match the current pack listing format."""
-    root = packs or packs_dir()
-    folder, manifest = load_pack(pack_id, packs=root)
-    assert_etsy_ready(manifest, folder)
-    if price_sek is None:
-        price_sek = float(manifest.get("etsy_original_price_sek") or 0) or None
-    if price_sek is None:
-        raise EtsyError("Cannot align listing without a known SEK price.", kind="media")
-    fields = listing_fields(manifest, price_sek=price_sek)
-    if not etsy_is_ready():
-        raise EtsyError(
-            "Etsy seller state is not ready. Listings stay queued until "
-            "`anskar etsy set-state ready` after seller verification.",
-            kind="credentials",
-        )
-    stored = credentials or ensure_fresh_credentials()
-    graph = client or EtsyClient(stored)
-    shop = graph.get_shop(stored.shop_id)
-    assert_shop_currency(str(shop.get("currency_code") or shop.get("currency") or ""))
-    graph.update_listing(
-        listing_id,
-        {
-            "title": fields["title"],
-            "description": fields["description"],
-            "tags": fields["tags"],
-            "materials": fields["materials"],
-            "who_made": fields["who_made"],
-            "when_made": fields["when_made"],
-            "is_supply": False,
-            "type": "download",
-            "quantity": 1,
-            "should_auto_renew": False,
-        },
-    )
-    gallery = ensure_gallery_details(folder, rng=rng)
-    _sync_listing_gallery(graph, listing_id, gallery, replace=True)
-    apply_listing_attributes(
-        graph,
-        listing_id,
-        print_inches=print_inches_from_manifest(manifest),
-        square=str(manifest.get("orientation") or "square").lower() == "square",
-    )
-    existing_files = results_list(graph.get_listing_files(listing_id), "results")
-    if not existing_files:
-        for path in digital_files(folder):
-            graph.upload_listing_file(listing_id, path)
-    _assert_assets_attached(graph, listing_id, expected_images=len(gallery))
-    url = listing_url(listing_id)
-    from datetime import datetime, timezone
-
-    activated = datetime.now(timezone.utc).isoformat()
-    price = ArtworkPrice(
-        r=int(manifest.get("etsy_price_r") or 0),
-        s=int(manifest.get("etsy_price_s") or 0),
-        original_sek=int(price_sek),
-        currency=REQUIRED_CURRENCY,
-    )
-    _mark_pack_etsy(
-        folder,
-        listing_id=listing_id,
-        listing_url=url,
-        price=price,
-        activated_at=str(manifest.get("etsy_activated_at") or activated),
-    )
-    return {
-        "aligned": True,
-        "pack_id": pack_id,
-        "listing_id": listing_id,
-        "listing_url": url,
-        "title": fields["title"],
-        "images": len(gallery),
-        "price_sek": int(price_sek),
-    }
 
 
 def publish_pack(

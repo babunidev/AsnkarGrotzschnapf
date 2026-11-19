@@ -7,6 +7,9 @@ data/sources/
 data/artworks/
 data/experiments/
 data/instagram/
+data/reels/
+data/reels-music/*
+!data/reels-music/README.md
 data/systemd-system/
 data/test-cycle/
 data/*.sqlite

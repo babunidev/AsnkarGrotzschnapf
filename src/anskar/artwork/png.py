@@ -18,7 +18,6 @@ DEFAULT_PRINT_INCHES = 8
 # The generator may still be asked for this many pixels. It is 12 inches at 200 PPI.
 PRINT_LONG_EDGE = TARGET_PPI * SQUARE_INCHES[-1]
 PRINT_DPI = EXCELLENT_PPI
-PRINT_INCHES = 8
 
 
 def pixels_for_print(
@@ -59,13 +58,6 @@ def effective_ppi(pixels: int, inches: float) -> int:
     if pixels < 1:
         raise ValueError("Pixels must be positive.")
     return int(round(pixels / inches))
-
-
-def effective_dpi(pixels: int, inches: float) -> float:
-    """One-decimal PPI. Prefer effective_ppi for a print classification."""
-    if inches <= 0:
-        raise ValueError("Inches must be positive.")
-    return round(pixels / inches, 1)
 
 
 def classify_ppi(ppi: int) -> dict[str, object]:

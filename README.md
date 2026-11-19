@@ -8,11 +8,12 @@ Local poetry archive and daily artist. Once a day this machine can:
 2. Generate a 1600×1600 artwork locally (`sd-cli`)  
 3. Prepare a print pack  
 4. Publish to Instagram (`@anskargrotzschnapf`)  
-5. List a quantity-1 SEK digital download on Etsy when the shop is `ready`
+5. List a quantity-1 SEK digital download on Etsy when the shop is `ready`  
+6. After every seven daily Instagram posts, publish one compilation Reel (local FFmpeg → Instagram VIDEO)
 
-**Version 1.0** is that automated loop with the noon wake timer and Etsy maintenance armed. Manual Instagram and Etsy `publish` commands still require `--confirm`.
+**Version 1.1** adds autonomous Reels on top of the 1.0 noon loop and Etsy maintenance. Manual Instagram, Etsy, and Reels `publish` commands still require `--confirm`.
 
-Permanent agent instructions: [AGENTS.md](AGENTS.md). Short history: [CHANGELOG.md](CHANGELOG.md). Design/task records: [`docs/tasks/`](docs/tasks/).
+Permanent agent instructions: [AGENTS.md](AGENTS.md). Short history: [CHANGELOG.md](CHANGELOG.md). Development and troubleshooting history: [docs/DEVLOG.md](docs/DEVLOG.md). Design/task records: [`docs/tasks/`](docs/tasks/).
 
 ## Setup
 
@@ -31,7 +32,7 @@ Prefer **one** noon publisher:
 - **PC may sleep overnight:** system timer with `WakeSystem=true` (staged by `schedule prepare-system`, enabled with sudo). Keep the **user** noon timer disabled.
 - **PC stays awake:** user timer via `schedule install --enable`.
 
-Also enable the Etsy maintain user timer (sales, day-30 discount, day-42 removal).
+Also enable the Etsy maintain user timer (sales, day-30 discount, day-42 removal, and Reel eligibility drain).
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m anskar schedule status
@@ -124,7 +125,19 @@ PYTHONPATH=src .venv/bin/python -m anskar etsy maintain
 PYTHONPATH=src .venv/bin/python -m anskar etsy refresh-descriptions
 ```
 
-OAuth alone does not enable publishing — seller verification is separate (`etsy set-state ready`). Buyer listing copy is short: digital download note, intended print size, the source poem, and one local-AI disclosure. Gallery photos are preview-based; the paid file is the print PNG. Tokens refresh automatically. Secrets are never printed.
+OAuth alone does not enable publishing — seller verification is separate (`etsy set-state ready`). Buyer listing copy is short: digital download note, intended print size, the source poem, and one local-AI disclosure. Gallery photos are preview-based; the paid file is the print PNG. Tokens refresh automatically. Secrets are never printed. `etsy maintain` also recovers Reel eligibility and drains pending Reel jobs.
+
+### Reels
+
+After every seven successful daily Instagram publishes, Anskar builds a 9:16 compilation MP4 locally (FFmpeg) and publishes it with Instagram Login `media_type=VIDEO`. Optional instrumental tracks go in `data/reels-music/` once; without music the file still includes silent AAC.
+
+```bash
+PYTHONPATH=src .venv/bin/python -m anskar reels status
+PYTHONPATH=src .venv/bin/python -m anskar reels render
+PYTHONPATH=src .venv/bin/python -m anskar reels publish <job-id> --dry-run
+PYTHONPATH=src .venv/bin/python -m anskar reels publish <job-id> --confirm
+PYTHONPATH=src .venv/bin/python -m anskar reels maintain
+```
 
 ## One-time wake rehearsal
 
@@ -140,6 +153,12 @@ The result is kept in `data/test-cycle/latest.json`. Cancel before the wake with
 After pulling timer unit changes, refresh installed units (`schedule install` / `prepare-system` + sudo copy for the system timer).
 
 ## Tests
+
+Prefer the offline runner, which permits localhost test servers but blocks external Python socket connections and fails if any are attempted. External subprocess adapters must still be mocked.
+
+```bash
+ANSKAR_NOTIFY=0 .venv/bin/python scripts/run_tests_offline.py
+```
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v

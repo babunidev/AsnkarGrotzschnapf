@@ -226,12 +226,6 @@ def generate_pending(
     return _record(database, artwork_id)
 
 
-def check_ready(settings: GeneratorSettings, seed: int) -> None:
-    _validate_settings(settings)
-    _validate_seed(seed)
-    _require_installed_files(settings)
-
-
 def build_command(settings: GeneratorSettings, prompt: str, seed: int, output: Path) -> list[str]:
     """Production command. It stays on the reviewed Z-Image Turbo profile."""
     profile = production_model(settings)
@@ -321,11 +315,6 @@ def build_model_command(
         anchor = "--flash-attn" if "--flash-attn" in command else "--steps"
         command.insert(command.index(anchor), "--offload-to-cpu")
     return command
-
-
-def _production_model_record(settings: GeneratorSettings) -> dict[str, object]:
-    profile = production_model(settings)
-    return _profile_fields(profile)
 
 
 def _profile_record(plan: GenerationPlan) -> dict[str, object]:

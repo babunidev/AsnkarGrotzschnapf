@@ -241,7 +241,7 @@ def setup_etsy_interactive(
     except ValueError as exc:
         raise EtsyError("Taxonomy id must be an integer.", kind="credentials") from exc
     # Allow app-only setup for OAuth connect (placeholder shop/token until connect).
-    # Listing prices use 230 + 20R + 10S SEK — not a stored default.
+    # Listing prices use 120 + 20R + 10S SEK — not a stored default.
     stored = EtsyCredentials(
         api_key=api_key,
         shared_secret=shared,

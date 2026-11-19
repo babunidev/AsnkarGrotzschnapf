@@ -33,6 +33,7 @@ def maintain_etsy(
     now: datetime | None = None,
     offline: bool = False,
     packs: Path | None = None,
+    run_reels: bool = False,
 ) -> dict[str, object]:
     """
     Reconcile sales, apply the day-30 discount, remove unsold listings after 42 days,
@@ -59,52 +60,74 @@ def maintain_etsy(
     }
     if not etsy_is_ready():
         report["skipped"].append("seller_not_ready")  # type: ignore[union-attr]
-        return report
-    if offline:
+    elif offline:
         report["offline_delay"] = True
         report["errors"].append(  # type: ignore[union-attr]
             "Computer offline; deadlines will catch up on the next successful run."
         )
+    else:
+        try:
+            if client is None:
+                creds = ensure_fresh_credentials()
+                graph = EtsyClient(creds)
+            else:
+                graph = client
+        except EtsyError as exc:
+            report["errors"].append(str(exc))  # type: ignore[union-attr]
+            report["offline_delay"] = exc.kind in {"timeout", "api"}
+            graph = None
+
+        if graph is not None:
+            db = database or etsy_database_path()
+            try:
+                sales = _sync_sales(graph, database=db, now=clock)
+                report["sales_recorded"] = sales
+            except EtsyError as exc:
+                report["errors"].append(f"sales: {exc}")  # type: ignore[union-attr]
+                if exc.kind == "timeout":
+                    report["offline_delay"] = True
+                    graph = None
+
+            if graph is not None:
+                try:
+                    discounted, expired, removed = _apply_schedule(graph, database=db, now=clock)
+                    report["discounted"] = discounted
+                    report["expired"] = expired
+                    report["removed"] = removed
+                except EtsyError as exc:
+                    report["errors"].append(f"schedule: {exc}")  # type: ignore[union-attr]
+                    if exc.kind == "timeout":
+                        report["offline_delay"] = True
+
+                try:
+                    retries = _retry_failed_daily_packs(
+                        graph, packs=packs or packs_dir(), database=db
+                    )
+                    report["retries_published"] = retries
+                except EtsyError as exc:
+                    report["errors"].append(f"retry: {exc}")  # type: ignore[union-attr]
+                    if exc.kind == "timeout":
+                        report["offline_delay"] = True
+
+    # Cross-service publication must be explicitly requested by the CLI.
+    # Injecting an Etsy test client must never enable real Instagram side effects.
+    if not run_reels or offline:
         return report
 
+    # Drain autonomous Reels even when Etsy is not ready (same timer cadence).
     try:
-        if client is None:
-            creds = ensure_fresh_credentials()
-            graph = EtsyClient(creds)
-        else:
-            graph = client
-    except EtsyError as exc:
-        report["errors"].append(str(exc))  # type: ignore[union-attr]
-        report["offline_delay"] = exc.kind in {"timeout", "api"}
-        return report
+        from anskar.reels.service import maintain_reels
 
-    db = database or etsy_database_path()
-    try:
-        sales = _sync_sales(graph, database=db, now=clock)
-        report["sales_recorded"] = sales
-    except EtsyError as exc:
-        report["errors"].append(f"sales: {exc}")  # type: ignore[union-attr]
-        if exc.kind == "timeout":
-            report["offline_delay"] = True
-            return report
-
-    try:
-        discounted, expired, removed = _apply_schedule(graph, database=db, now=clock)
-        report["discounted"] = discounted
-        report["expired"] = expired
-        report["removed"] = removed
-    except EtsyError as exc:
-        report["errors"].append(f"schedule: {exc}")  # type: ignore[union-attr]
-        if exc.kind == "timeout":
-            report["offline_delay"] = True
-
-    try:
-        retries = _retry_failed_daily_packs(graph, packs=packs or packs_dir(), database=db)
-        report["retries_published"] = retries
-    except EtsyError as exc:
-        report["errors"].append(f"retry: {exc}")  # type: ignore[union-attr]
-        if exc.kind == "timeout":
-            report["offline_delay"] = True
+        reels = maintain_reels(packs=packs or packs_dir(), publish=True)
+        report["reels"] = {
+            "recovered_eligibility": reels.get("recovered_eligibility"),
+            "waiting": reels.get("waiting"),
+            "claimed": reels.get("claimed"),
+            "processed": len(reels.get("processed") or []),
+            "errors": reels.get("errors") or [],
+        }
+    except Exception as exc:  # noqa: BLE001
+        report["errors"].append(f"reels: {exc}")  # type: ignore[union-attr]
     return report
 
 

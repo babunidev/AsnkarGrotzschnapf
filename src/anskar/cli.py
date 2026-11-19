@@ -61,6 +61,12 @@ from anskar.interpret import ABSTRACTIONS, DEFAULT_ABSTRACTION, InterpreterError
 from anskar.lab.experiments import experiments_dir
 from anskar.models import PRODUCTION_MODEL_ID, installed_models
 from anskar.printmaker import PrintError, approve_artwork
+from anskar.reels.errors import ReelError
+from anskar.reels.service import (
+    maintain_reels,
+    process_reel_job,
+    reels_status,
+)
 from anskar.style import production_style
 
 
@@ -92,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
             return _instagram(args)
         if args.command == "etsy":
             return _etsy(args)
+        if args.command == "reels":
+            return _reels(args)
         if args.command == "daily-run":
             return _daily_run(dry_run=args.dry_run)
         if args.command == "daily-status":
@@ -115,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         InstagramError,
         EtsyError,
         DailyError,
+        ReelError,
         ValueError,
     ) as exc:
         print(str(exc), file=sys.stderr)
@@ -254,7 +263,7 @@ def _parser() -> argparse.ArgumentParser:
     etsy_ready.add_argument("pack_id", nargs="?", help="optional pack to validate assets against")
     etsy_commands.add_parser(
         "maintain",
-        help="sync sales, apply day-30 discount, remove unsold listings after 42 days",
+        help="sync sales, apply day-30 discount, remove unsold listings after 42 days, drain Reels",
     )
     etsy_commands.add_parser(
         "refresh-descriptions",
@@ -296,6 +305,30 @@ def _parser() -> argparse.ArgumentParser:
     etsy_mode = etsy_publish.add_mutually_exclusive_group(required=True)
     etsy_mode.add_argument("--dry-run", action="store_true")
     etsy_mode.add_argument("--confirm", action="store_true")
+
+    reels = commands.add_parser(
+        "reels",
+        help="autonomous Instagram compilation Reels (every seven daily artworks)",
+    )
+    reels_commands = reels.add_subparsers(dest="reels_command", required=True)
+    reels_commands.add_parser("status", help="show waiting artworks and recent Reel jobs")
+    reels_render = reels_commands.add_parser(
+        "render",
+        help="claim a batch when seven artworks wait, or render one job (no Instagram publish)",
+    )
+    reels_render.add_argument("job_id", nargs="?", help="optional existing job id to render")
+    reels_publish = reels_commands.add_parser(
+        "publish",
+        help="render and publish one Reel job (manual; daily/maintain do this automatically)",
+    )
+    reels_publish.add_argument("job_id", help="Reel job id")
+    reels_pub_mode = reels_publish.add_mutually_exclusive_group(required=True)
+    reels_pub_mode.add_argument("--dry-run", action="store_true")
+    reels_pub_mode.add_argument("--confirm", action="store_true")
+    reels_commands.add_parser(
+        "maintain",
+        help="recover missed eligibility and drain pending/failed Reel jobs",
+    )
 
     daily = commands.add_parser(
         "daily-run",
@@ -342,7 +375,21 @@ def _parser() -> argparse.ArgumentParser:
     test_cycle.add_argument(
         "--publish",
         action="store_true",
-        help="paint one extra artwork and publish it to Instagram (asks for confirmation)",
+        help="paint one artwork and publish it to Instagram (asks for confirmation)",
+    )
+    test_cycle.add_argument(
+        "--production",
+        action="store_true",
+        help=(
+            "with --publish: full noon-style daily-run (Instagram + Etsy when ready); "
+            "consumes today's Swedish Instagram slot"
+        ),
+    )
+    test_cycle.add_argument(
+        "--wake-minutes",
+        type=int,
+        default=3,
+        help="minutes until RTC wake (default 3; use 1 for a quick witness run)",
     )
     test_cycle.add_argument(
         "--cancel",
@@ -691,7 +738,7 @@ def _etsy(args: argparse.Namespace) -> int:
             print(f"  {name}: {value}")
         return 0 if report["ready_to_publish"] or not report["seller_ready"] else 1
     if args.etsy_command == "maintain":
-        report = maintain_etsy()
+        report = maintain_etsy(run_reels=True)
         print(f"Seller state: {report['seller_state']}")
         print(f"Sales recorded: {report['sales_recorded']}")
         print(f"Discounted: {report['discounted']}")
@@ -702,6 +749,14 @@ def _etsy(args: argparse.Namespace) -> int:
             print(f"Error: {err}", file=sys.stderr)
         for skip in report.get("skipped") or []:
             print(f"Skipped: {skip}")
+        reels = report.get("reels") or {}
+        if reels:
+            print(
+                f"Reels: waiting={reels.get('waiting')} recovered={reels.get('recovered_eligibility')} "
+                f"processed={reels.get('processed')}"
+            )
+            for err in reels.get("errors") or []:
+                print(f"Reel error: {err}", file=sys.stderr)
         return 0
     if args.etsy_command == "refresh-descriptions":
         report = refresh_listing_descriptions()
@@ -767,6 +822,66 @@ def _etsy(args: argparse.Namespace) -> int:
     return 0
 
 
+def _reels(args: argparse.Namespace) -> int:
+    if args.reels_command == "status":
+        report = reels_status()
+        print(f"Waiting (unbatched): {report['waiting']} / {report['batch_size']}")
+        print(f"Database: {report['database']}")
+        jobs = report.get("jobs") or []
+        if not jobs:
+            print("No Reel jobs yet.")
+            return 0
+        for job in jobs:
+            media = job.get("media_id") or "-"
+            print(f"{job['id']} status={job['status']} media={media}")
+            if job.get("error_message"):
+                print(f"  error: {job['error_message']}")
+        return 0
+    if args.reels_command == "maintain":
+        report = maintain_reels(publish=True)
+        print(f"Recovered eligibility: {report.get('recovered_eligibility')}")
+        print(f"Waiting: {report.get('waiting')}")
+        if report.get("claimed"):
+            print(f"Claimed: {report['claimed']}")
+        for item in report.get("processed") or []:
+            print(f"Processed {item.get('id')}: {item.get('status')}")
+        for err in report.get("errors") or []:
+            print(f"Error: {err}", file=sys.stderr)
+        return 0 if not report.get("errors") else 1
+    if args.reels_command == "render":
+        from anskar.reels.ledger import claim_next_batch, connect
+
+        job_id = args.job_id
+        if not job_id:
+            with connect() as connection:
+                job_id = claim_next_batch(connection)
+            if not job_id:
+                waiting = reels_status().get("waiting")
+                print(f"Not enough eligible artworks yet (waiting={waiting}).")
+                return 0
+            print(f"Claimed {job_id}")
+        result = process_reel_job(job_id, dry_run=True, publish=False)
+        print(f"Rendered {result['id']}: {result.get('status')}")
+        if result.get("video_path"):
+            print(f"Video: {result['video_path']}")
+        if result.get("caption"):
+            print("--- caption ---")
+            print(result["caption"])
+        return 0
+    if args.reels_command == "publish":
+        dry_run = bool(args.dry_run)
+        result = process_reel_job(args.job_id, dry_run=dry_run, publish=not dry_run)
+        print(f"Reel {result['id']}: {result.get('status')}")
+        if result.get("media_id"):
+            print(f"Media: {result['media_id']}")
+        if result.get("permalink"):
+            print(f"Permalink: {result['permalink']}")
+        if dry_run:
+            print("Dry run. Nothing was published.")
+        return 0
+    return 2
+
+
 def _daily_run(*, dry_run: bool) -> int:
     result = daily_run(dry_run=dry_run)
     print(f"Daily run {result['id']}: {result['status']}")
@@ -796,10 +911,8 @@ def _daily_run(*, dry_run: bool) -> int:
 
 def _daily_status() -> int:
     report = run_status()
-    print(f"Auto-approval in daily mode: {'yes' if report['auto_approval'] else 'no'}")
     etsy = report.get("etsy_integration") or {}
     print(f"Etsy integration: {etsy.get('state')}")
-    print(f"Etsy blocks daily completion: {'yes' if report.get('etsy_blocks_daily_completion') else 'no'}")
     active = report.get("active")
     latest = report.get("latest")
     if active:
@@ -938,7 +1051,17 @@ def _test_cycle(args: argparse.Namespace) -> int:
             print(str(exc), file=sys.stderr)
             return 1
         return 0
-    print(warning_text(publish=args.publish))
+    if args.production and not args.publish:
+        print("--production requires --publish.", file=sys.stderr)
+        return 1
+    wake_minutes = max(1, int(args.wake_minutes))
+    print(
+        warning_text(
+            publish=args.publish,
+            production=bool(args.production),
+            wake_minutes=wake_minutes,
+        )
+    )
     print("Inspect the result later in data/test-cycle/latest.json")
     print("Cancel before wake with: anskar schedule test-cycle --cancel")
     answer = input("Type yes to continue: ")
@@ -950,6 +1073,8 @@ def _test_cycle(args: argparse.Namespace) -> int:
 
         report = schedule_test_cycle(
             publish=args.publish,
+            production=bool(args.production),
+            wake_minutes=wake_minutes,
             production_next=production_next_elapse(),
         )
     except DailyError as exc:

@@ -69,6 +69,23 @@ class GraphClient:
         )
         return _required_id(payload, "Instagram did not return a media container.")
 
+    def create_video(self, user_id: str, *, video_url: str, caption: str) -> str:
+        """Instagram Login Reel container (media_type=REELS). Meta pulls video_url.
+
+        Meta deprecated media_type=VIDEO (error 100 / subcode 2207067).
+        """
+        payload = self._json(
+            "POST",
+            f"/{self.version}/{user_id}/media",
+            {
+                "media_type": "REELS",
+                "video_url": video_url,
+                "caption": caption,
+                "share_to_feed": "true",
+            },
+        )
+        return _required_id(payload, "Instagram did not return a video container.")
+
     def container_status(self, container_id: str) -> dict[str, object]:
         return self._json(
             "GET",
@@ -167,10 +184,18 @@ def _api_error(status: int, payload: dict[str, object], token: str) -> Instagram
             "The Instagram token was rejected. Install a current token with "
             "`anskar instagram install-token --from FILE`. Do not paste the token into the chat."
         )
-    elif "api access blocked" in lowered:
+    elif "api access blocked" in lowered or (code == 200 and "blocked" in lowered):
+        # Meta often returns OAuthException code 200 for app-level access blocks.
         kind = "access_blocked"
         summary = "Meta blocked API access for this app or account."
-    elif code in {10, 200, 294} or "permission" in lowered:
+    elif code in {10, 294} or "permission" in lowered:
+        kind = "permission"
+        summary = (
+            "The token is missing Instagram permission. Publishing needs "
+            "instagram_business_basic and instagram_business_content_publish."
+        )
+    elif code == 200:
+        # Remaining code-200 OAuth errors are usually permission/policy, not a soft retry.
         kind = "permission"
         summary = (
             "The token is missing Instagram permission. Publishing needs "

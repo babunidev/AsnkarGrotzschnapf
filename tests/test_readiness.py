@@ -174,6 +174,35 @@ class ReadinessTests(unittest.TestCase):
         _try_start_ollama(runner, spawn_serve=lambda: spawned.append("serve"))
         self.assertEqual(spawned, ["serve"])
 
+    def test_ensure_ollama_ready_starts_then_waits(self) -> None:
+        from anskar.daily.readiness import ensure_ollama_ready
+
+        started: list[str] = []
+        probes = iter([False, False, True])
+
+        ensure_ollama_ready(
+            timeout_seconds=10,
+            pause_seconds=0,
+            sleep=lambda _s: None,
+            ollama_probe=lambda: next(probes),
+            start_ollama=lambda: started.append("start"),
+        )
+        self.assertEqual(started, ["start"])
+
+    def test_ensure_ollama_ready_raises_when_never_comes_up(self) -> None:
+        from anskar.daily.errors import DailyError
+        from anskar.daily.readiness import ensure_ollama_ready
+
+        with self.assertRaises(DailyError) as caught:
+            ensure_ollama_ready(
+                timeout_seconds=0.01,
+                pause_seconds=0,
+                sleep=lambda _s: None,
+                ollama_probe=lambda: False,
+                start_ollama=lambda: None,
+            )
+        self.assertIn("Ollama is not running", str(caught.exception))
+
     def test_ollama_serve_command_drops_to_artist_when_root(self) -> None:
         with patch("anskar.daily.readiness.os.geteuid", return_value=0):
             with patch.dict(os.environ, {"ANSKAR_TEST_USER": "babuni"}):

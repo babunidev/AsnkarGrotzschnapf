@@ -5,18 +5,11 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=@USER@
-Group=@USER@
+# Run the unit as root so systemd-inhibit can block sleep without polkit
+# interactive auth. Drop to @USER@ for the artist (never paint as root).
 WorkingDirectory=@PROJECT_ROOT@
-Environment=HOME=@HOME@
-Environment=USER=@USER@
-Environment=PYTHONPATH=@PROJECT_ROOT@/src
-Environment=XDG_RUNTIME_DIR=/run/user/@UID@
-Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/@UID@/bus
 Environment=ANSKAR_SCHEDULED=1
-Environment=ANSKAR_NOTIFY=1
-# Never run the artist as root. Inhibit sleep only while this oneshot runs.
-ExecStart=/usr/bin/systemd-inhibit --what=idle:sleep:handle-lid-switch --who=AnskarGrotzschnapf --why="Daily artwork production" --mode=block @PYTHON@ -m anskar daily-run
+ExecStart=/usr/bin/systemd-inhibit --what=idle:sleep:handle-lid-switch --who=AnskarGrotzschnapf --why="Daily artwork production" --mode=block /usr/bin/runuser -u @USER@ -- env HOME=@HOME@ USER=@USER@ PYTHONPATH=@PROJECT_ROOT@/src XDG_RUNTIME_DIR=/run/user/@UID@ DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/@UID@/bus ANSKAR_SCHEDULED=1 ANSKAR_NOTIFY=1 @PYTHON@ -m anskar daily-run
 Nice=10
 
 [Install]

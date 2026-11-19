@@ -226,6 +226,21 @@ class FakeEtsy:
 
 
 class EtsyPublishTests(unittest.TestCase):
+    def test_injected_etsy_client_never_calls_reel_publisher(self):
+        with patch("anskar.reels.service.maintain_reels") as reels:
+            maintain_etsy(database=self.db, client=self.fake)
+        reels.assert_not_called()
+
+    def test_explicit_reel_maintenance_is_forwarded(self):
+        with patch("anskar.reels.service.maintain_reels", return_value={}) as reels:
+            maintain_etsy(database=self.db, client=self.fake, packs=self.packs, run_reels=True)
+        reels.assert_called_once_with(packs=self.packs, publish=True)
+
+    def test_offline_maintenance_never_calls_reel_publisher(self):
+        with patch("anskar.reels.service.maintain_reels") as reels:
+            maintain_etsy(database=self.db, offline=True, run_reels=True)
+        reels.assert_not_called()
+
     def setUp(self) -> None:
         self.root = Path(tempfile.mkdtemp(prefix="anskar-etsy-pub-"))
         self.packs = self.root / "packs"
@@ -295,7 +310,7 @@ class EtsyPublishTests(unittest.TestCase):
 
     def test_pricing_formula_and_discount(self) -> None:
         price = calculate_price(sales_before=3, r=4)
-        self.assertEqual(price.original_sek, 230 + 80 + 30)
+        self.assertEqual(price.original_sek, 120 + 80 + 30)
         self.assertEqual(price.currency, REQUIRED_CURRENCY)
         self.assertEqual(price.as_api_price(), float(price.original_sek * 4 // 5))
         self.assertEqual(price.discounted_sek % 5, 0)
@@ -399,12 +414,12 @@ class EtsyPublishTests(unittest.TestCase):
         self.assertTrue(result["published"])
         self.assertEqual(result["quantity"], 1)
         self.assertEqual(result["currency"], "SEK")
-        self.assertEqual(result["price_sek"], 230 + 40 + 0)
+        self.assertEqual(result["price_sek"], 120 + 40 + 0)
         self.assertEqual(result["price_r"], 2)
         self.assertEqual(result["price_s"], 0)
         listing_id = str(result["listing_id"])
         self.assertEqual(self.fake.listings[listing_id]["state"], "active")
-        self.assertEqual(self.fake.listings[listing_id]["price"], float((230 + 40) * 4 // 5))
+        self.assertEqual(self.fake.listings[listing_id]["price"], float((120 + 40) * 4 // 5))
         # Web preview (never print.png) plus detail crops; print is download-only.
         self.assertGreaterEqual(len(self.fake.images[listing_id]), 1)
         self.assertIn(self.fake.images[listing_id][0]["name"], {"preview.jpg", "preview.png"})
@@ -417,7 +432,7 @@ class EtsyPublishTests(unittest.TestCase):
         self.assertIsNotNone(stored)
         assert stored is not None
         self.assertEqual(stored["state"], "active")
-        self.assertEqual(stored["original_price_sek"], 270.0)
+        self.assertEqual(stored["original_price_sek"], 160.0)
 
     def test_duplicate_prevention_and_resume_after_timeout(self) -> None:
         pack_id = self._pack("dup-1")
@@ -526,7 +541,7 @@ class EtsyPublishTests(unittest.TestCase):
             rng=type("R", (), {"randrange": staticmethod(lambda a, b: 0)})(),
         )
         self.assertEqual(priced["price_s"], 1)
-        self.assertEqual(priced["price_sek"], 230 + 10)
+        self.assertEqual(priced["price_sek"], 120 + 10)
 
     def test_thirty_day_discount_and_forty_two_day_expiry(self) -> None:
         pack_id = self._pack("life-1")
@@ -553,7 +568,7 @@ class EtsyPublishTests(unittest.TestCase):
         mid = maintain_etsy(database=self.db, client=self.fake, now=day30)  # type: ignore[arg-type]
         self.assertEqual(mid["discounted"], 1)
         self.assertEqual(self.fake.price_updates[-1][0], listing_id)
-        inclusive = 230 + 100
+        inclusive = 120 + 100
         discounted_inclusive = int(round(inclusive * 0.8))
         discounted_inclusive = int(round(discounted_inclusive / 5.0) * 5)
         expected_net = discounted_inclusive * 4 // 5

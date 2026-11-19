@@ -277,10 +277,6 @@ def update_listing(connection: sqlite3.Connection, attempt_id: int, **fields: ob
     )
 
 
-def row_public(row: sqlite3.Row) -> dict[str, object]:
-    return {key: row[key] for key in row.keys()}
-
-
 def _migrate(connection: sqlite3.Connection) -> None:
     row = connection.execute(
         "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'etsy_listings'"

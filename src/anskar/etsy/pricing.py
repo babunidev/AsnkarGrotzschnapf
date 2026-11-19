@@ -1,6 +1,6 @@
 """Single-sale Etsy pricing in SEK.
 
-Customer-facing target (Sweden): 230 + 20R + 10S whole kronor, VAT included.
+Customer-facing target (Sweden): 120 + 20R + 10S whole kronor, VAT included.
 Etsy digital downloads list a net price; for EU buyers Etsy adds local VAT on
 top. There is no shop toggle for “prices include VAT” on digital items. We send
 net = inclusive × 4/5 so a Swedish buyer (25% VAT) sees the whole-krona total.
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from anskar.etsy.errors import EtsyError
 
-BASE_SEK = 230
+BASE_SEK = 120
 R_WEIGHT = 20
 S_WEIGHT = 10
 DISCOUNT_FRACTION = 0.20

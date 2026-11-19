@@ -175,13 +175,6 @@ def instagram_published_live_run_for_swedish_day(
     return None
 
 
-def completed_live_run_for_swedish_day(
-    connection: sqlite3.Connection, day: str
-) -> sqlite3.Row | None:
-    """Backward-compatible name: day is consumed once Instagram has published."""
-    return instagram_published_live_run_for_swedish_day(connection, day)
-
-
 def get_run(connection: sqlite3.Connection, run_id: str) -> sqlite3.Row | None:
     return connection.execute("SELECT * FROM daily_runs WHERE id = ?", (run_id,)).fetchone()
 

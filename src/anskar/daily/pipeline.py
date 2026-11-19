@@ -140,10 +140,6 @@ def run_status(*, daily_db: Path | None = None) -> dict[str, object]:
         "active": public_run(active) if active is not None else None,
         "latest": public_run(latest) if latest is not None else None,
         "etsy_integration": etsy,
-        "etsy_configured_credentials": False,  # credentials optional while pending
-        "auto_approval": True,
-        "poem_marked_used_after_instagram": True,
-        "etsy_blocks_daily_completion": False,
     }
 
 
@@ -213,6 +209,12 @@ def _run_or_resume(
 
     try:
         status = str(row["status"])
+        # Noon systemd does not run wake readiness. Start Ollama when this run
+        # still needs interpretation (tests inject generate= and skip this).
+        if generate is None and not is_dry and status == "selected" and not row["image_path"]:
+            from anskar.daily.readiness import ensure_ollama_ready
+
+            ensure_ollama_ready()
         if status == "selected":
             notify_stage("start", _run_detail(row, prefix="Starting"))
         else:
@@ -410,6 +412,37 @@ def _complete_after_instagram(
         )
     if pack_id and not dry_run:
         _mark_pack_instagram_published(packs / pack_id)
+        _maybe_queue_reel(run_id, pack_id=pack_id, daily=daily)
+
+
+def _maybe_queue_reel(run_id: str, *, pack_id: str, daily: Path) -> None:
+    """Record Reel eligibility for production Instagram publishes; never fail the daily run."""
+    try:
+        from anskar.config import PROJECT_ROOT
+
+        # A simulated daily run must not reach the live Reel ledger/publisher.
+        if daily.resolve() != (PROJECT_ROOT / "data/daily.sqlite").resolve():
+            return
+        if not str(pack_id).startswith("production-"):
+            return
+        with connect(daily) as connection:
+            row = get_run(connection, run_id)
+        if row is None:
+            return
+        if bool(row["dry_run"]) or row["run_kind"] != "daily":
+            return
+        artwork_id = pack_id
+        from anskar.reels.service import maybe_run_reel_pipeline, record_reel_eligible
+
+        record_reel_eligible(artwork_id=artwork_id, pack_id=pack_id)
+        result = maybe_run_reel_pipeline(publish=True)
+        errors = result.get("errors") if isinstance(result, dict) else None
+        if errors:
+            notify_stage("failed", f"Reel: {errors[0]}")
+    except Exception as exc:  # noqa: BLE001
+        # Reels must never block daily completion.
+        notify_stage("failed", f"Reel: {exc}")
+        return
 
 
 def _step_select(run_id: str, *, archive: Path, daily: Path, packs: Path) -> None:

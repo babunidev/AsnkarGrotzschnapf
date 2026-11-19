@@ -4,6 +4,19 @@
 
 > Correction — 30 October 2026: The 29 October test rerun unintentionally published a duplicate Reel because publishing was not fully isolated in tests. The earlier statement that this verification made no live publication was incorrect. Passing tests did not establish the absence of external side effects.
 
+## 2026-10-30 — Correction: test isolation caused an unintended duplicate Reel
+
+The 29 October verification note below incorrectly said that no live publication occurred. Instagram's read-only media API subsequently confirmed a second Reel at **13:57:45 Swedish time on 29 October**, during the unrestricted test rerun performed for that documentation update: [unintended duplicate](https://www.instagram.com/reel/DfFDw1ulKaF/). The production ledger still contained only the [original 24 October Reel](https://www.instagram.com/reel/De37wR7lcl2/).
+
+Investigation found an isolation defect: Etsy maintenance tests injected a fake Etsy client, but maintenance also invoked the real Reel pipeline. Earlier daily tests leaked temporary Reel storage settings. Recovery then read real published packs into an empty temporary ledger, treated the original seven as unused, and could use real Instagram credentials. A passing test suite therefore did not establish that the run was free of external side effects. The agent launched that rerun and takes responsibility for the inaccurate earlier report.
+
+Local fixes make cross-service Reel maintenance explicit at the CLI boundary, prevent simulated daily runs from accessing production Reels, require explicit publishing adapters for alternate Reel ledgers, restore test environment variables, and exclude rehearsal/orphan-manifest recovery. Batches require seven distinct unused packs; pack aliases cannot re-enroll an image, claims are serialized, and publishing uses a process lock. Already-published jobs remain terminal even when their media ID is unavailable. An offline test runner blocks external Python socket connections while allowing localhost tests; subprocess adapters still need to be mocked.
+
+The 30 October noon run was a separate issue: the machine shut down at 21:19:59 on 29 October and booted at 12:15:25 the next day. The noon timer uses `Persistent=false`, so it did not replay the missed noon slot. No production run was recorded for that day at investigation time. The five genuine artworks from 25–29 October remain unused by the original Reel batch and are retained toward the next seven; the accidental repeat does not consume them.
+
+The existing posts were not deleted. This incident supersedes the earlier claim that the 29 October documentation tests made no live publication. The fixes are local working-tree changes, not a claim that the GitHub code snapshot was updated.
+
+
 ## Retrospective source review — 2026-10-26
 
 The project began with the artistic experiment of a fictional machine artist creating on a schedule rather than a one-off image generator. Its repository now records the practical journey needed to make that fiction operational: assembling and clearing a poetry archive, interpreting text without replacing the original poem, selecting image-generation styles, preparing printable files, and integrating publication services.

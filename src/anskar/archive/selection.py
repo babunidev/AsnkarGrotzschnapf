@@ -3,14 +3,14 @@
 import random
 import sqlite3
 from collections.abc import Sequence
+from typing import Protocol
 
 from anskar.archive.models import NoEligiblePoemError, NoPendingSelectionError, Poem, Selection
 from anskar.archive.repository import get_pending, insert_pending, list_eligible, resolve_pending, utc_now
 
 
-class Chooser:
-    def choice(self, sequence: Sequence[Poem]) -> Poem:
-        raise NotImplementedError
+class PoemChooser(Protocol):
+    def choice(self, sequence: Sequence[Poem]) -> Poem: ...
 
 
 class RandomChooser:
@@ -24,7 +24,7 @@ class RandomChooser:
 def select_poem(
     connection: sqlite3.Connection,
     *,
-    chooser: Chooser | None = None,
+    chooser: PoemChooser | None = None,
     selected_at: str | None = None,
     exclude_poem_ids: set[int] | frozenset[int] | None = None,
 ) -> Selection:

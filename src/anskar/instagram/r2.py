@@ -24,7 +24,11 @@ BUCKET = "anskar-grotzschnapf"
 REGION = "auto"
 OBJECT_PREFIX = "instagram/"
 PRESIGN_SECONDS = 3600
+# Reels / video: Meta must pull the file through container processing (safeguard 5).
+VIDEO_PRESIGN_SECONDS = 86400
+VIDEO_OBJECT_PREFIX = "instagram/reels/"
 CONTENT_TYPE = "image/jpeg"
+VIDEO_CONTENT_TYPE = "video/mp4"
 
 
 @dataclass(frozen=True)
@@ -159,13 +163,19 @@ def _write_credentials(credentials: R2Credentials) -> None:
 
 
 class R2StagingAdapter:
-    """Upload a private JPEG and return a short-lived HTTPS GET URL."""
+    """Upload a private object and return an HTTPS GET URL."""
 
-    def __init__(self, credentials: R2Credentials | None = None, *, client=None) -> None:
+    def __init__(
+        self,
+        credentials: R2Credentials | None = None,
+        *,
+        client=None,
+        expires_in: int | None = None,
+    ) -> None:
         self.credentials = credentials or load_r2_credentials()
         self._client = client
         self.bucket = self.credentials.bucket
-        self.expires_in = PRESIGN_SECONDS
+        self.expires_in = PRESIGN_SECONDS if expires_in is None else int(expires_in)
 
     def _s3(self):
         if self._client is not None:
@@ -190,15 +200,23 @@ class R2StagingAdapter:
         )
         return self._client
 
-    def object_key(self, pack_id: str, *, suffix: str = ".jpg") -> str:
+    def object_key(self, pack_id: str, *, suffix: str = ".jpg", prefix: str = OBJECT_PREFIX) -> str:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         safe = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in pack_id).strip("-") or "pack"
-        return f"{OBJECT_PREFIX}{safe}/{stamp}-{uuid.uuid4().hex[:12]}{suffix}"
+        return f"{prefix}{safe}/{stamp}-{uuid.uuid4().hex[:12]}{suffix}"
 
-    def upload(self, path: Path, key: str | None = None, *, content_type: str = CONTENT_TYPE) -> StagedObject:
+    def upload(
+        self,
+        path: Path,
+        key: str | None = None,
+        *,
+        content_type: str = CONTENT_TYPE,
+        expires_in: int | None = None,
+    ) -> StagedObject:
         if not path.is_file():
-            raise InstagramError("The Instagram JPEG is missing.", kind="media")
+            raise InstagramError("The staging source file is missing.", kind="media")
         object_key = key or self.object_key(path.stem)
+        ttl = self.expires_in if expires_in is None else int(expires_in)
         client = self._s3()
         try:
             client.upload_file(
@@ -210,7 +228,7 @@ class R2StagingAdapter:
             url = client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": self.bucket, "Key": object_key},
-                ExpiresIn=self.expires_in,
+                ExpiresIn=ttl,
             )
         except Exception as exc:  # noqa: BLE001
             raise InstagramError(
@@ -219,7 +237,7 @@ class R2StagingAdapter:
             ) from exc
         if not isinstance(url, str) or not url.startswith("https://"):
             raise InstagramError("R2 did not return an https presigned URL.", kind="url")
-        log.info("Staged object key=%s", object_key)
+        log.info("Staged object key=%s ttl=%s", object_key, ttl)
         return StagedObject(key=object_key, url=url)
 
     def delete(self, key: str) -> None:
@@ -264,6 +282,24 @@ def stage_jpeg(
     staging = adapter or R2StagingAdapter()
     key = staging.object_key(pack_id)
     return staging.upload(path, key)
+
+
+def stage_video(
+    path: Path,
+    *,
+    job_id: str,
+    adapter: R2StagingAdapter | None = None,
+    expires_in: int = VIDEO_PRESIGN_SECONDS,
+) -> StagedObject:
+    """Stage an MP4 with a long-lived presign for Meta video processing."""
+    staging = adapter or R2StagingAdapter(expires_in=expires_in)
+    key = staging.object_key(job_id, suffix=".mp4", prefix=VIDEO_OBJECT_PREFIX)
+    return staging.upload(
+        path,
+        key,
+        content_type=VIDEO_CONTENT_TYPE,
+        expires_in=expires_in,
+    )
 
 
 def smoke_test(adapter: R2StagingAdapter | None = None) -> dict[str, object]:

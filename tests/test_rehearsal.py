@@ -345,6 +345,22 @@ class ResumeAndWorkTests(unittest.TestCase):
         self.assertIn("Nothing was published", body)
         self.assertTrue(title)
 
+        with patch.dict(os.environ, {"ANSKAR_TEST_PRODUCTION": "1"}):
+            with patch("anskar.daily.pipeline.daily_run", return_value={
+                "status": "completed",
+                "id": "daily-prod",
+                "title": "XVIII",
+                "instagram_status": "published",
+                "instagram_permalink": "https://www.instagram.com/p/prod/",
+                "etsy_status": "published",
+                "poem_id": 5,
+            }) as prod_daily:
+                production = paint(publish=True)
+        prod_daily.assert_called_once()
+        self.assertNotIn("allow_test", prod_daily.call_args.kwargs)
+        self.assertFalse(prod_daily.call_args.kwargs.get("dry_run", False))
+        self.assertTrue(production["production"])
+        self.assertEqual(production["etsy_status"], "published")
     def test_failure_is_kept_in_the_report(self):
         def work(*, publish: bool) -> dict:
             raise DailyError("sd-cli failed", kind="error")
@@ -402,9 +418,21 @@ class SleepDecisionTests(unittest.TestCase):
                 success=True,
                 idle_before=True,
                 idle_after=True,
-                foreign=["ModemManager sleep"],
+                foreign=["Chrome 1000 babuni 99 chrome sleep Playing video block"],
             ).action,
             "stay_awake",
+        )
+        # Production witness: IdleHint often stays "no" after a short wake.
+        self.assertEqual(
+            test_sleep_decision(
+                publish=True,
+                success=True,
+                idle_before=False,
+                idle_after=False,
+                foreign=[],
+                production=True,
+            ).action,
+            "suspend",
         )
 
     def test_failure_and_diagnostic_do_not_suspend(self):
@@ -458,14 +486,17 @@ class SleepDecisionTests(unittest.TestCase):
     def test_our_inhibitor_is_not_treated_as_foreign(self):
         text = "\n".join(
             [
-                "WHO UID USER PID COMM WHAT WHY",
-                "AnskarGrotzschnapf 1000 babuni 9 python sleep:idle:handle-lid-switch Daily artwork",
-                "ModemManager 0 root 10 ModemManager sleep modem",
+                "WHO            UID  USER   PID  COMM            WHAT                                                                       WHY                                       MODE",
+                "AnskarGrotzschnapf 1000 babuni 9 python idle:sleep:handle-lid-switch Daily artwork production block",
+                "ModemManager   0    root   10 ModemManager    sleep                                                                      ModemManager needs to reset devices       delay",
+                "NetworkManager 0    root   11 NetworkManager  sleep                                                                      NetworkManager needs to turn off networks delay",
+                "Chrome         1000 babuni 12 chrome          sleep                                                                      Playing video                             block",
             ]
         )
         foreign = parse_foreign_inhibitors(text)
         self.assertEqual(len(foreign), 1)
-        self.assertIn("ModemManager", foreign[0])
+        self.assertIn("Chrome", foreign[0])
+        self.assertNotIn("ModemManager", " ".join(foreign))
 
     def test_return_to_sleep_ignores_anskar_own_inhibitor(self):
         """Anskar's block must not prevent the post-publish suspend request."""

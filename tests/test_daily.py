@@ -23,7 +23,19 @@ POEM_BODY_2 = "Tiger tiger burning bright\nIn the forests of the night"
 
 
 class DailyPipelineTests(unittest.TestCase):
+    def test_simulated_daily_run_cannot_reach_live_reels(self):
+        from anskar.daily.pipeline import _maybe_queue_reel
+
+        with patch("anskar.reels.service.record_reel_eligible") as record:
+            with patch("anskar.reels.service.maybe_run_reel_pipeline") as publish:
+                _maybe_queue_reel("fake", pack_id="production-poem-2-seed-7-a", daily=self.daily_db)
+        record.assert_not_called()
+        publish.assert_not_called()
+
     def setUp(self):
+        self.env = patch.dict(os.environ)
+        self.env.start()
+        self.addCleanup(self.env.stop)
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.archive = self.root / "archive.sqlite"
@@ -34,9 +46,14 @@ class DailyPipelineTests(unittest.TestCase):
         self.etsy_state = self.root / "etsy-state.json"
         self.packs.mkdir()
         self.artworks.mkdir()
+        self.reels_db = self.root / "reels.sqlite"
+        self.reels_dir = self.root / "reels"
+        self.reels_dir.mkdir()
         self._seed_archive()
         set_etsy_state(PENDING_VERIFICATION, path=self.etsy_state)
         os.environ["ANSKAR_NOTIFY"] = "0"
+        os.environ["ANSKAR_REELS_DB"] = str(self.reels_db)
+        os.environ["ANSKAR_REELS_DIR"] = str(self.reels_dir)
 
     def tearDown(self):
         self.temporary.cleanup()
@@ -289,8 +306,7 @@ class DailyPipelineTests(unittest.TestCase):
         set_etsy_state(READY, path=self.etsy_state)
         self.assertEqual(load_etsy_state(self.etsy_state), READY)
         status = run_status(daily_db=self.daily_db)
-        self.assertFalse(status["etsy_blocks_daily_completion"])
-        self.assertTrue(status["poem_marked_used_after_instagram"])
+        self.assertIn("etsy_integration", status)
 
     def test_production_direction_reinforces_and_rejects_literal_prompts(self):
         reinforced = reinforce_production_prompt("An impossible chamber of wool light")

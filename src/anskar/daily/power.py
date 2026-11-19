@@ -26,7 +26,6 @@ class AfterRunDecision:
 
     action: str  # stay_awake | leave_to_idle_manager
     reason: str
-    force_suspend: bool = False  # always False — kept explicit for tests
 
 
 def inhibit_argv(argv: list[str]) -> list[str]:
@@ -119,7 +118,7 @@ def decide_after_run(
     """
     Decide whether automatic return-to-sleep is appropriate.
 
-    Never returns force_suspend=True. When unsure, stay awake and rely on KDE.
+    When unsure, stay awake and rely on KDE. The noon path does not suspend.
     """
     is_scheduled = (
         bool(os.environ.get("ANSKAR_SCHEDULED")) if scheduled is None else scheduled

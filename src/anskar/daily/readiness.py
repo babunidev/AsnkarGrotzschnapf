@@ -292,6 +292,62 @@ def _ollama_reachable() -> bool:
         return False
 
 
+def ensure_ollama_ready(
+    *,
+    timeout_seconds: float = 90.0,
+    pause_seconds: float = 2.0,
+    sleep: Sleeper | None = None,
+    runner: Runner | None = None,
+    ollama_probe: Callable[[], bool] | None = None,
+    start_ollama: Callable[[], None] | None = None,
+) -> None:
+    """
+    Make sure the local Ollama server is accepting connections.
+
+    The noon systemd job does not go through wake readiness, so without this
+    a cold machine fails immediately with "Ollama is not running". Same start
+    path as the wake rehearsal: systemctl when available, else `ollama serve`.
+    """
+    import time
+
+    probe = ollama_probe or _ollama_reachable
+    pause = sleep or time.sleep
+    if probe():
+        return
+    try:
+        if start_ollama is not None:
+            start_ollama()
+        else:
+            _try_start_ollama(runner or _subprocess)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise DailyError(
+            f"Ollama is not running at {_ollama_where()} and could not be started ({exc}).",
+            kind="error",
+        ) from exc
+    deadline = time.monotonic() + max(timeout_seconds, 1.0)
+    while time.monotonic() < deadline:
+        if probe():
+            print(f"Ollama is ready at {_ollama_where()}.", flush=True)
+            return
+        pause(pause_seconds)
+    raise DailyError(
+        f"Ollama is not running at {_ollama_where()} "
+        f"(started a server but it did not become ready within {int(timeout_seconds)}s).",
+        kind="error",
+    )
+
+
+def _ollama_where() -> str:
+    host = OLLAMA_HOST.rstrip("/")
+    try:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(host)
+        return f"{parsed.hostname or '127.0.0.1'}:{parsed.port or 11434}"
+    except Exception:  # noqa: BLE001
+        return "127.0.0.1:11434"
+
+
 def _try_start_ollama(
     runner: Runner,
     *,

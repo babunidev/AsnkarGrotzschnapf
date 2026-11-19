@@ -43,7 +43,10 @@ class ScheduleUnitTests(unittest.TestCase):
         system = (unit_source_dir() / "system" / "anskar-daily.service").read_text(encoding="utf-8")
         self.assertIn("systemd-inhibit", user)
         self.assertIn("systemd-inhibit", system)
-        self.assertIn("User=@USER@", system)
+        # System unit: inhibit as root, then runuser to the artist account.
+        self.assertIn("runuser", system)
+        self.assertIn("-u @USER@", system)
+        self.assertNotIn("\nUser=", system)
         self.assertNotIn("User=root", system)
         cmd = inhibit_command("/tmp/python", "-m", "anskar", "daily-run")
         self.assertEqual(cmd[0], "/usr/bin/systemd-inhibit")
@@ -90,8 +93,9 @@ class ScheduleUnitTests(unittest.TestCase):
             timer = (staging / "anskar-daily.timer").read_text(encoding="utf-8")
             self.assertIn("WakeSystem=true", timer)
             service = (staging / "anskar-daily.service").read_text(encoding="utf-8")
-            self.assertIn("User=", service)
+            self.assertIn("runuser -u ", service)
             self.assertNotIn("@USER@", service)
+            self.assertNotIn("\nUser=", service)
             self.assertTrue(any("disable --now anskar-daily.timer" in c for c in report["activation_commands"]))
             self.assertTrue(any("sudo" in c for c in report["activation_commands"]))
 
@@ -100,22 +104,18 @@ class PowerPolicyTests(unittest.TestCase):
     def test_already_awake_manual_run_stays_awake(self):
         decision = decide_after_run(scheduled=False, idle=True)
         self.assertEqual(decision.action, "stay_awake")
-        self.assertFalse(decision.force_suspend)
 
     def test_user_active_after_wake_never_suspends(self):
         decision = decide_after_run(scheduled=True, idle=False)
         self.assertEqual(decision.action, "stay_awake")
-        self.assertFalse(decision.force_suspend)
 
     def test_scheduled_idle_leaves_to_kde_without_forcing(self):
         decision = decide_after_run(scheduled=True, idle=True)
         self.assertEqual(decision.action, "leave_to_idle_manager")
-        self.assertFalse(decision.force_suspend)
 
     def test_unknown_idle_stays_awake(self):
         decision = decide_after_run(scheduled=True, idle=None)
         self.assertEqual(decision.action, "stay_awake")
-        self.assertFalse(decision.force_suspend)
 
     def test_verify_rtc_wake_does_not_suspend(self):
         report = verify_rtc_wake()

@@ -40,12 +40,22 @@ WORK_TIMEOUT_SECONDS = 3 * 60 * 60
 SUBPROCESS_TIMEOUT_SECONDS = 120
 
 PUBLISH_WARNING = (
-    "This will suspend the computer, wake it about 3 minutes later, "
+    "This will suspend the computer, wake it about {minutes} minute(s) later, "
     "paint one new artwork, and publish that artwork to @anskargrotzschnapf. "
-    "Etsy is only queued. The noon schedule is not changed."
+    "Etsy is only queued. The noon schedule is not changed. "
+    "After publish, the PC suspends only if the session stayed idle "
+    "(leave the keyboard and mouse alone to witness the full sleep return)."
+)
+PRODUCTION_WARNING = (
+    "This will suspend the computer, wake it about {minutes} minute(s) later, "
+    "and run a FULL production daily-run (Instagram + Etsy when ready), "
+    "same as the noon timer. That consumes today's Swedish Instagram slot. "
+    "The noon schedule itself is not changed. "
+    "After publish, the PC suspends only if the session stayed idle "
+    "(leave the keyboard and mouse alone to witness the full sleep return)."
 )
 DIAGNOSTIC_WARNING = (
-    "This will suspend the computer and wake it about 3 minutes later "
+    "This will suspend the computer and wake it about {minutes} minute(s) later "
     "so the test service can run. No artwork is generated and nothing is published. "
     "The noon schedule is not changed."
 )
@@ -68,8 +78,13 @@ def report_directory() -> Path:
     return PROJECT_ROOT / "data" / "test-cycle"
 
 
-def warning_text(*, publish: bool) -> str:
-    return PUBLISH_WARNING if publish else DIAGNOSTIC_WARNING
+def warning_text(*, publish: bool, production: bool = False, wake_minutes: int = 3) -> str:
+    minutes = max(1, int(wake_minutes))
+    if production and publish:
+        return PRODUCTION_WARNING.format(minutes=minutes)
+    if publish:
+        return PUBLISH_WARNING.format(minutes=minutes)
+    return DIAGNOSTIC_WARNING.format(minutes=minutes)
 
 
 def wake_at(now: datetime, *, lead: timedelta = WAKE_LEAD) -> datetime:
@@ -92,10 +107,12 @@ def render_test_units(
     publish: bool,
     when: datetime,
     python: str | None = None,
+    production: bool = False,
 ) -> tuple[str, str]:
     """Return (service_text, timer_text). The noon unit names are not used."""
     program = python or default_python()
     publish_flag = "1" if publish else "0"
+    production_flag = "1" if production else "0"
     service = "\n".join(
         [
             "[Unit]",
@@ -113,6 +130,7 @@ def render_test_units(
             f"Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{os.getuid()}/bus",
             "Environment=ANSKAR_TEST_CYCLE=1",
             f"Environment=ANSKAR_TEST_PUBLISH={publish_flag}",
+            f"Environment=ANSKAR_TEST_PRODUCTION={production_flag}",
             f"Environment=ANSKAR_TEST_USER={os.environ.get('USER', '')}",
             f"Environment=ANSKAR_TEST_UID={os.getuid()}",
             "# Runs as root so cleanup and suspend need no password. Painting drops to ANSKAR_TEST_USER.",
@@ -185,6 +203,12 @@ def wait_for_resume_ready(
 
 
 def parse_foreign_inhibitors(text: str) -> list[str]:
+    """
+    Return sleep inhibitors that actually block suspend.
+
+    Always-on `delay` agents (NetworkManager, UPower, Cursor cleanup, …) must not
+    prevent return-to-sleep. Only MODE=block on sleep/idle counts.
+    """
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:
         return []
@@ -193,7 +217,18 @@ def parse_foreign_inhibitors(text: str) -> list[str]:
     for line in body:
         if "AnskarGrotzschnapf" in line:
             continue
-        if "sleep" in line.lower():
+        lower = line.lower()
+        # systemd-inhibit --list prints MODE as the final column.
+        mode = lower.rsplit(None, 1)[-1] if lower else ""
+        if mode == "delay":
+            continue
+        if mode and mode != "block" and "block" not in lower:
+            # Unparseable / legacy test lines without a mode: only keep explicit sleep.
+            if "sleep" not in lower:
+                continue
+            foreign.append(line)
+            continue
+        if "sleep" in lower or "idle" in lower:
             foreign.append(line)
     return foreign
 
@@ -205,13 +240,18 @@ def test_sleep_decision(
     idle_before: bool | None,
     idle_after: bool | None,
     foreign: list[str] | None,
+    production: bool = False,
 ) -> TestSleepDecision:
     if not publish or not success:
         return TestSleepDecision(
             "stay_awake",
             "The rehearsal did not publish successfully. Leaving the computer awake.",
         )
-    if idle_before is not True or idle_after is not True:
+    # Plasma/logind IdleHint stays "no" for many minutes after RTC wake, even when
+    # nobody touches the machine. For a full production witness run, that must not
+    # block return-to-sleep; only a real sleep *block* inhibitor should.
+    idle_ok = idle_before is True and idle_after is True
+    if not idle_ok and not production:
         return TestSleepDecision(
             "stay_awake",
             "The user is active or idle status is uncertain. Leaving the computer awake.",
@@ -226,9 +266,15 @@ def test_sleep_decision(
             "stay_awake",
             "Another sleep inhibitor is held. Leaving the computer awake.",
         )
+    if idle_ok:
+        return TestSleepDecision(
+            "suspend",
+            "The session stayed idle and no other sleep inhibitor is held.",
+        )
     return TestSleepDecision(
         "suspend",
-        "The session stayed idle and no other sleep inhibitor is held.",
+        "Production rehearsal finished; no sleep-block inhibitor is held "
+        "(Plasma IdleHint is unreliable right after RTC wake).",
     )
 
 
@@ -283,8 +329,13 @@ def perform_test_work(*, publish: bool) -> dict[str, object]:
         }
     from anskar.daily.pipeline import daily_run
 
+    production = os.environ.get("ANSKAR_TEST_PRODUCTION", "").strip() == "1"
     try:
-        result = daily_run(dry_run=False, allow_test=True, queue_etsy_only=True)
+        if production:
+            # Same path as the noon timer: live Instagram + Etsy when ready.
+            result = daily_run(dry_run=False)
+        else:
+            result = daily_run(dry_run=False, allow_test=True, queue_etsy_only=True)
     except Exception as exc:  # noqa: BLE001 — the report has to survive a failed paint
         return {
             "status": "failed",
@@ -298,6 +349,7 @@ def perform_test_work(*, publish: bool) -> dict[str, object]:
             "etsy_status": None,
             "error": str(exc),
             "run_id": None,
+            "production": production,
         }
     success = result.get("status") == "completed" and result.get("instagram_status") == "published"
     return {
@@ -312,6 +364,7 @@ def perform_test_work(*, publish: bool) -> dict[str, object]:
         "etsy_status": result.get("etsy_status"),
         "error": None if success else str(result.get("error_message") or result.get("status")),
         "run_id": result.get("id"),
+        "production": production,
     }
 
 
@@ -391,17 +444,24 @@ def schedule_test_cycle(
     etc_dir: Path | None = None,
     production_next: datetime | None = None,
     suspend: bool = True,
+    production: bool = False,
+    wake_minutes: int = 3,
 ) -> dict[str, object]:
     """Install the one-time system timer and, when suspend is true, suspend the PC."""
+    if production and not publish:
+        raise DailyError("A production rehearsal requires --publish.", kind="error")
+    minutes = max(1, int(wake_minutes))
     moment = now or datetime.now().astimezone()
-    when = wake_at(moment)
+    when = wake_at(moment, lead=timedelta(minutes=minutes))
     if wake_conflicts(when, production_next):
         raise DailyError(
             "The rehearsal wake is too close to another RTC alarm. "
             "The noon timer was not changed.",
             kind="busy",
         )
-    service_text, timer_text = render_test_units(publish=publish, when=when)
+    service_text, timer_text = render_test_units(
+        publish=publish, when=when, production=production
+    )
     stage = staging or (system_staging_dir() / "test-cycle")
     stage.mkdir(parents=True, exist_ok=True)
     service_path = stage / TEST_SERVICE
@@ -416,6 +476,8 @@ def schedule_test_cycle(
         "status": "scheduled",
         "stage": "scheduled",
         "publish": publish,
+        "production": production,
+        "wake_minutes": minutes,
         "scheduled_at": moment.isoformat(timespec="seconds"),
         "wake_at": when.isoformat(timespec="seconds"),
         "service": TEST_SERVICE,
@@ -739,6 +801,7 @@ def finish_test_cycle(
         idle_before=before,
         idle_after=after,
         foreign=foreign,
+        production=bool(payload.get("production")),
     )
     payload["sleep_action"] = decision.action
     payload["sleep_reason"] = decision.reason
@@ -837,20 +900,6 @@ def _deliver(report: dict[str, object], notify: Callable[..., bool] | None) -> b
         return bool(sender(title=title, body=body))
     except (OSError, subprocess.TimeoutExpired):
         return False
-
-
-def _base_report(*, publish: bool, status: str, error: str | None = None) -> dict[str, object]:
-    return {
-        "status": status,
-        "stage": status,
-        "success": status in {"completed", "diagnostic"},
-        "publish": publish,
-        "finished_at": _now_iso(),
-        "error": error,
-        "noon_timer_changed": False,
-        "title": None,
-        "instagram_permalink": None,
-    }
 
 
 def _read_report(directory: Path | None) -> dict[str, object]:

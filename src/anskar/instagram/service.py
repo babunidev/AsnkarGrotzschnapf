@@ -17,6 +17,7 @@ from anskar.instagram.credentials import (
     save_profile,
     seconds_until,
 )
+from anskar.instagram.api_gate import InstagramApiGate
 from anskar.instagram.errors import InstagramError
 from anskar.instagram.graph import GraphClient
 from anskar.instagram.hosting import load_hosts
@@ -33,9 +34,9 @@ from anskar.instagram.ledger import (
 from anskar.instagram.posts import assert_publishable, prepare_post
 from anskar.instagram.r2 import R2StagingAdapter, stage_jpeg
 
-# Meta: poll container status until FINISHED before media_publish.
-POLL_INTERVAL_SECONDS = 5.0
-MAX_POLLS = 24  # about two minutes
+# Meta guidance / Azeroth: ~1 status poll per 20s for stills (not every few seconds).
+POLL_INTERVAL_SECONDS = 20.0
+MAX_POLL_SECONDS = 300.0
 PUBLISH_NOT_READY_RETRIES = 3
 
 
@@ -56,11 +57,18 @@ def database_path() -> Path:
 def connection_status(
     credentials: Credentials | None = None,
     client: GraphClient | None = None,
+    *,
+    database: Path | None = None,
 ) -> dict[str, object]:
-    """Read the profile. This does not publish."""
+    """Read the profile. This does not publish. A successful probe clears the API gate."""
+    gate = InstagramApiGate(database)
     stored = credentials or load_credentials()
     graph = client or GraphClient(stored.access_token, version=stored.graph_version)
-    profile = graph.profile()
+    try:
+        profile = graph.profile()
+    except InstagramError as exc:
+        gate.note_error(exc)
+        raise
     username = str(profile.get("username") or "")
     user_id = str(profile.get("user_id") or profile.get("id") or "")
     account_type = str(profile.get("account_type") or "")
@@ -71,6 +79,7 @@ def connection_status(
         )
     if not user_id:
         raise InstagramError("Instagram did not return an account id.", kind="api")
+    gate.record_access_ok(detail=f"ok @{username}")
     updated = save_profile(stored, user_id=user_id)
     remaining = seconds_until(updated.expires_at)
     return {
@@ -90,6 +99,7 @@ def connection_status(
         },
         "renewal": _renewal_text(remaining),
         "published": False,
+        "api_gate": gate.snapshot(),
     }
 
 
@@ -226,48 +236,57 @@ def publish(
             "Nothing was published. Use --dry-run to review the post, or --confirm to publish it.",
             kind="error",
         )
+    gate = InstagramApiGate(db)
+    gate.assert_clear()
     stored = credentials or load_credentials()
     graph = client or GraphClient(stored.access_token, version=stored.graph_version)
-    account = _require_account(stored, graph)
     sleeper = sleep or _sleep
     creation_id = None
     prior = blocking
     if prior is None:
         with connect(db) as connection:
             prior = recoverable_container_attempt(connection, str(record["artwork_id"]))
-    if prior is not None:
-        creation_id = _reconcile(
-            graph,
-            prior,
-            account["user_id"],
-            str(record["caption"]),
-            confirm=confirm,
-            replace_unknown=replace_unknown,
-            database=db,
-            staging=staging,
-            sleep=sleeper,
-        )
-        if isinstance(creation_id, dict):
-            return creation_id
-    if creation_id is None:
-        creation_id = _stage_and_create(
+    try:
+        account = _require_account(stored, graph)
+        if prior is not None:
+            creation_id = _reconcile(
+                graph,
+                prior,
+                account["user_id"],
+                str(record["caption"]),
+                confirm=confirm,
+                replace_unknown=replace_unknown,
+                database=db,
+                staging=staging,
+                sleep=sleeper,
+            )
+            if isinstance(creation_id, dict):
+                gate.record_access_ok(detail="published via reconcile")
+                return creation_id
+        if creation_id is None:
+            creation_id = _stage_and_create(
+                graph,
+                db,
+                record,
+                account["user_id"],
+                staging=staging,
+                probe=probe or probe_public_url,
+            )
+        _wait_until_ready(graph, db, record, creation_id, sleep=sleeper)
+        result = _publish_container(
             graph,
             db,
             record,
             account["user_id"],
+            creation_id,
             staging=staging,
-            probe=probe or probe_public_url,
+            sleep=sleeper,
         )
-    _wait_until_ready(graph, db, record, creation_id, sleep=sleeper)
-    return _publish_container(
-        graph,
-        db,
-        record,
-        account["user_id"],
-        creation_id,
-        staging=staging,
-        sleep=sleeper,
-    )
+        gate.record_access_ok(detail="published")
+        return result
+    except InstagramError as exc:
+        gate.note_error(exc)
+        raise
 
 def list_pack_attempts(pack_id: str, *, database: Path | None = None) -> list[dict[str, object]]:
     with connect(database or database_path()) as connection:
@@ -545,8 +564,11 @@ def _wait_until_ready(
     *,
     sleep,
 ) -> None:
+    import time
+
     attempt_id = _attempt_for_container(database, str(record["artwork_id"]), container_id)
-    for _ in range(MAX_POLLS):
+    deadline = time.monotonic() + MAX_POLL_SECONDS
+    while time.monotonic() < deadline:
         try:
             status = client.container_status(container_id)
         except InstagramError as exc:
