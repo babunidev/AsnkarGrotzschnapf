@@ -1,19 +1,28 @@
-# Anskar Grotzschnapf — authorship and collaboration
+# Human–AI collaboration
 
-Follow [the documentation standard](DOCUMENTATION.md) for first-person author voice throughout project documentation, factual changelogs, and naming the AI tool and verified model for each contribution.
+## How I work with AI
 
-## Anskar and the poems
+Every project here begins with something I want to see in a game, on a screen or in a story. The ideas, the direction and the decisions are mine, and so are the playtests and the checks on my own devices. AI helps me get there. In my early projects that meant asking ChatGPT for Lua in a conversation, copying the changes into local files and trying them in the game. Today coding agents work directly in the repositories: they research, write code and documentation and run tests, while I decide what to build, try it out and say what works and what doesn't.
 
-For Anskar, I imagined a fictional artist interpreting selected, rights-cleared poems through a daily local process. Anskar Grotzschnapf is the fictional artist. Each poem and translation carries its own authorship and archive credits.
+Two rules hold this record together. Work is credited to whoever did it: the story is told in my voice, but when AI wrote code or a document, the record says so and names the tool and, where it is known, the model. And a plan is not a result: proposed, accepted, built, tested and published stay separate, and an automated test by an AI is not the same as my own check in the game or on my phone.
 
-Poem authors and translators must be identified using archive metadata, with copyright eligibility and source evidence kept alongside the text. AI-generated interpretations or images do not make an AI or the fictional persona the author of the quoted poems.
+## Who did what
 
-Separate the human concept and constraints, AI coding/interpretation/generation, explicit human decisions, repository changes, and verified publication/test events. Preserve failed experiments when they explain later safeguards. Never publish secrets or fabricated release history.
+| Who | Role | Model as recorded |
+| --- | --- | --- |
+| **Babuni** | Creative: ideas, direction, decisions, corrections, playtesting and device checks | — |
+| **Codex** | Coding agent in the repository: research, code, documentation and tests | GPT-6 |
+| **Claude Code** | Coding agent in the repository: research, code, documentation and tests | Claude Opus 5.5 |
+| **Cursor** | Coding agent in the repository: research, code, documentation and tests | Not recorded |
+| **Earlier AI help** | Work that older entries describe only as “AI” | Tool and model not recorded |
 
-## Documentation audit #36 — 2026-10-28
+The journal and the changelog name the tool for each piece of AI work. A model that was not recorded stays unrecorded rather than guessed.
 
-**AI contribution:** Research organization, code, interpretation, image generation and publishing assistance may be attributed only where documented; this audit adds historical context around existing task evidence. **Iteration:** Source-text preservation after task 015 and idempotent publishing/retry protections in task 021 demonstrate corrections from earlier imperfect behavior. **Implementation:** Documentation changes, not new artistic output or automated actions. **Verification:** Repository records read; current tests, scheduler state, credentials and live services not checked. Preserve original task chronology and never fabricate acceptance or a successful sale/publication.
+## Where the details are
 
-## 18 November 2026 — Collaboration record review
+- [Development journal](DEVLOG.md): the story of the project in my voice, including what I asked for and what AI did.
+- [Decision record](DECISIONS.md): what was decided, by whom and why.
+- [Changelog](../CHANGELOG.md): what changed and how it was checked.
+- [Documentation standard](DOCUMENTATION.md) and [AGENTS.md](../AGENTS.md): the writing and working rules for everyone who contributes, human or AI.
 
-At my request, Codex (GPT-6) revised this record for first-person voice and checked the attribution against the available repository documentation. Where an earlier AI tool or model is missing from the record, its identity remains unconfirmed.
+The earlier, longer version of this record, as it stood on 18 November 2026, is kept in the [Git history](https://github.com/babunidev/AsnkarGrotzschnapf/blob/829a830ce6d7e94c756b1f5775d4005b145d4b8b/docs/AI_COLLABORATION.md).
